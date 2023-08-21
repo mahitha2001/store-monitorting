@@ -18,7 +18,7 @@ add the my.cnf file as the configuration file (MySQL Workbench > Administration 
 4. Open the '/trigger_report' endpoint in a browser
    
     now the report just got triggered, after the completion of report, it displays the random store_id for which the report was generated
-6. Now open the '/generate_report' endpoint
+5. Now open the '/generate_report' endpoint
    
-    It prompts to download a csv file called store_status.csv
+    After the report generation finishes, it prompts to download a csv file called store_status.csv
 

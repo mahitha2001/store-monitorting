@@ -1,4 +1,4 @@
-# take-home-interview
+# Store-monitoring
 
 ## Setup
 

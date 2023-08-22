@@ -17,14 +17,7 @@ mydb = mysql.connector.connect(
 cursor = mydb.cursor()
 cursor.execute("USE stores")
 
-queryForDistinctStoreID ="""
-    SELECT distinct(store_id) from store_status
-"""
-cursor.execute(queryForDistinctStoreID )
-listOfStores=cursor.fetchall()
-
 def calculate_uptime_last_hour(store_id, current_time, timezone):
-    print("uptime")
     last_hour = current_time - datetime.timedelta(hours=1)
 
     before_last_hour = last_hour - datetime.timedelta(hours=1)
@@ -131,41 +124,35 @@ def calculate_downtime_last_hour(store_id, current_time, timezone):
     curr_time_ltd=datetime.datetime.combine(datetime.date.min, current_time_l.time()) - datetime.datetime.min
     inactive_time_ltd=datetime.datetime.combine(datetime.date.min, inactive_time_l.time()) - datetime.datetime.min
     last_hour_ltd=datetime.datetime.combine(datetime.date.min, last_hour_l.time()) - datetime.datetime.min
-    
-    print("curr_time_ltd: ",curr_time_ltd)
-    print("inactive_time_ltd: ",inactive_time_ltd)
-    print("last_hour_ltd: ",last_hour_ltd)
     max_bound=curr_time_ltd
     min_bound=None
     if inactive_time_ltd<last_hour_ltd:
         min_bound=last_hour_ltd
     else:
         min_bound=inactive_time_ltd
-    print("min_bound: ", min_bound)
-    print("max_bound: ", max_bound)
     
     if min_bound<=close_hours and min_bound>=open_hours and max_bound<=close_hours and max_bound>=open_hours:
-        print("case 0")
+
         min_=min_bound
         max_=max_bound
     elif min_bound<=close_hours and min_bound>=open_hours and max_bound>close_hours and max_bound>=open_hours:
-        print("case1")
+
         min_=min_bound
         max_=close_hours
     elif min_bound<=close_hours and min_bound<open_hours and max_bound<=close_hours and max_bound>=open_hours:
-        print("case2")        
+     
         min_=open_hours
         max_=max_bound
     elif min_bound<=close_hours and min_bound<open_hours and max_bound>close_hours and max_bound>=open_hours:
-        print("case3") 
+
         min_=open_hours
         max_=close_hours
     else:
-        print("case4") 
+
         min_=0
         max_=0
     #downtime_last_hour=max_bound-min_bound
-    print(max_,min_)
+
     return max_-min_
 #print(downtime_last_hour)
 
@@ -208,7 +195,6 @@ def calculate_for_last_week(current_time, store_id, timezone):
   last_week=current_time - datetime.timedelta(days=7)
   temp_time=current_time
   while temp_time>last_week:
-    print(temp_time)
     temp=calculate_for_last_hour(temp_time, store_id, timezone)
     uptime=uptime+temp.get('uptime_last_hour')
     downtime=downtime+temp.get('downtime_last_hour')
@@ -218,13 +204,12 @@ def calculate_for_last_week(current_time, store_id, timezone):
   return {"uptime_last_week":uptime_last_week, "downtime_last_week": downtime_last_week}
 
 def asyncGenerateReport(store_id):
-    print("storeid:", store_id)
+    print("storeid: ", store_id)
     query="""
       SELECT max(timestamp_utc) from store_status;
     """
     cursor.execute(query)
     current_time=cursor.fetchall()[0][0]
-    print(current_time)
 
     query = """
       SELECT timezone_str from timezones where store_id=%s;
@@ -232,7 +217,7 @@ def asyncGenerateReport(store_id):
 
     cursor.execute(query, (store_id,))
     timezone = cursor.fetchall()[0][0]
-    print("hey timezone: ", timezone)
+    print("timezone: ", timezone)
     last_hour=calculate_for_last_hour(current_time, store_id, timezone)
     print("last_hour: ", last_hour)
     last_day=calculate_for_last_day(current_time,store_id, timezone)
@@ -241,16 +226,20 @@ def asyncGenerateReport(store_id):
     #last_week={"uptime_last_week":0, "downtime_last_week": 0}
     print("last_week: ", last_week)
     return [last_hour, last_day , last_week ]
+
 results = {}  # Store results in a dictionary
 random_store_id = None  # To store the current store index
 
-
+queryForDistinctStoreID ="""
+    SELECT distinct(store_id) from store_status
+"""
+cursor.execute(queryForDistinctStoreID )
+listOfStores=cursor.fetchall()
 
 @app.route('/trigger_report', methods=['GET'])
 def triggerReport():
   global random_store_id
   random_store_id = random.randint(0, len(listOfStores) - 1)
-  #random_store_id = 2970450527428041505
   with concurrent.futures.ThreadPoolExecutor() as executor:
     future = executor.submit(asyncGenerateReport, listOfStores[random_store_id][0])
     results['report'] = future
@@ -263,7 +252,6 @@ def generateReport():
   
   if 'report' in results and results['report'].done():
     result = results.pop('report').result()
-    message="Report generated for the storeID="+str(listOfStores[random_store_id][0])
     csv_data=[{
         "uptime last hour(in minutes)": result[0].get('uptime_last_hour'),
         "downtime last hour(in minutes)": result[0].get('downtime_last_hour'),
